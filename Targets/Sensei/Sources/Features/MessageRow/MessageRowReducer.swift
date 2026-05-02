@@ -2,7 +2,8 @@ import SwiftUI
 import AppKit
 import ComposableArchitecture
 
-struct MessageRowReducer: Reducer {
+@Reducer
+struct MessageRowReducer {
     typealias State = Message
 
     enum Action: Equatable {

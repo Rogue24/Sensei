@@ -6,214 +6,277 @@ struct DetailView: View {
         case input
     }
 
-    let store: StoreOf<DetailReducer>
+    @Bindable var store: StoreOf<DetailReducer>
 
     @FocusState private var focusedField: FocusedField?
 
     var body: some View {
-        WithViewStore(store, observe: { $0 }) { viewStore in
-            ScrollViewReader { scrollViewProxy in
-                ScrollView {
-                    ZStack {
-                        Color.clear
-
-                        VStack {
-                            ForEachStore(
-                                store.scope(
-                                    state: \.messages,
-                                    action: DetailReducer.Action.messageRow(id:action:)
-                                )
-                            ) {
-                                MessageRowView(store: $0)
-                                    .rotationEffect(.radians(.pi))
-                                    .scaleEffect(x: -1, y: 1, anchor: .center)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-                .rotationEffect(.radians(.pi))
-                .scaleEffect(x: -1, y: 1, anchor: .center)
-                .background(Color(.textBackgroundColor))
-                .onChange(of: viewStore.animatedMessageToScrollTo) { value in
-                    if let value {
-                        if value.animated {
-                            withAnimation {
-                                scrollViewProxy.scrollTo(value.message.id, anchor: value.anchor)
-                            }
-                        } else {
-                            scrollViewProxy.scrollTo(value.message.id, anchor: value.anchor)
-                        }
-
-                        viewStore.send(.resetAnimatedMessageToScrollTo)
-                    }
-                }
-                .overlay {
-                    if viewStore.messages.isEmpty {
-                        VStack {
-                            Text("🤖")
-                                .font(.system(size: 48))
-
-                            Text("How can I help you?")
-                                .bold()
-                        }
-                    }
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    if !viewStore.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(
-                            { () -> AttributedString in
-                                if viewStore.enterToSend {
-                                    return try! .init(
-                                        markdown: "**Enter** to Send, **⇧ Enter** for Newline"
-                                    )
-
-                                } else {
-                                    return try! .init(
-                                        markdown: "**⇧Enter** to Send, **Enter** for Newline"
-                                    )
-                                }
-                            }()
-                        )
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 8)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 5))
-                        .padding(.horizontal, 8)
-                    }
-                }
-                .safeAreaInset(edge: .bottom) {
-                    HStack(spacing: 8) {
-                        if viewStore.chat.numberOfMessagesInContext > 0 {
-                            Button {
-                                guard let last = viewStore.messages.last else { return }
-                                guard !(last.source == .breaker), !(last.source == .receiving)
-                                else { return }
-
-                                viewStore.send(.breakChat)
-                            } label: {
-                                Image(systemName: "fish")
-                                    .frame(height: 44)
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Forget all history")
-                        }
-
-                        InputEditor(
-                            placeholder: "What's in your mind?",
-                            text: viewStore.binding(get: \.input, send: { .updateInput($0) }),
-                            enterToSend: viewStore.enterToSend,
-                            newlineAction: {
-                                viewStore.send(.sendInputIfCan)
-                            }
-                        )
-                        .focused($focusedField, equals: .input)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 4)
-                        .background(Color(.textBackgroundColor))
-                        .cornerRadius(5)
-                        .frame(height: 56)
-                    }
-                    .padding(8)
-                    .background(.thinMaterial, in: Rectangle())
-                    .onAppear {
-                        focusedField = .input
-                    }
-                }
-                .overlay {
-                    if viewStore.isTextModeEnabled {
-                        TextEditor(
-                            text: .constant(viewStore.chatContent)
-                        )
-                        .font(.body)
-                    }
-                }
+        ScrollViewReader { scrollViewProxy in
+            messageScrollView(scrollViewProxy)
+        }
+        .navigationTitle(store.chat.name)
+        .navigationSubtitle(store.chat.prompt)
+        .toolbar {
+            Button {
+                store.send(.updateEditChatPresented(true))
+            } label: {
+                Image(systemName: "info.circle")
             }
-            .navigationTitle(viewStore.chat.name)
-            .navigationSubtitle(viewStore.chat.prompt)
-            .toolbar {
-                Button {
-                    viewStore.send(.updateEditChatPresented(true))
-                } label: {
-                    Image(systemName: "info.circle")
-                }
-                .help("Edit chat")
-                .sheet(
-                    isPresented: viewStore.binding(
-                        get: \.isEditChatPresented,
-                        send: { .updateEditChatPresented($0) }
-                    )
-                ) {
-                    EditChatView(
-                        chat: viewStore.chat,
-                        cancelAction: {
-                            viewStore.send(.updateEditChatPresented(false))
-                        },
-                        doneAction: { chat in
-                            viewStore.send(.updateChat(chat))
-                            viewStore.send(.updateEditChatPresented(false))
-                        }
-                    )
-                }
+            .help("Edit chat")
 
-                Button {
-                    viewStore.send(.tryClearAllMessages)
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .disabled(viewStore.messages.isEmpty)
-                .help("Clear all messages")
-
-                Button {
-                    viewStore.send(.toggleTextModeEnabled)
-                } label: {
-                    Image(systemName: "doc.plaintext")
-                        .foregroundColor(viewStore.isTextModeEnabled ? .accentColor : nil)
-                }
-                .disabled(viewStore.messages.isEmpty)
-                .help("Toggle text mode")
-
-                Button {
-                    viewStore.send(.updateFileExporterPresented(true))
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                }
-                .disabled(viewStore.messages.isEmpty)
-                .help("Export as Markdown")
-                .fileExporter(
-                    isPresented: viewStore.binding(
-                        get: \.isFileExporterPresented,
-                        send: { .updateFileExporterPresented($0) }
-                    ),
-                    document: ChatDocument(
-                        data: viewStore.chatContent.data(using: .utf8)
-                    ),
-                    contentType: .markdown,
-                    defaultFilename: {
-                        let now = Date()
-                        let year = now.formatted(.dateTime.year(.defaultDigits))
-                        let month = now.formatted(.dateTime.month(.twoDigits))
-                        let day = now.formatted(.dateTime.day(.twoDigits))
-                        let hour = now.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)))
-                        let minute = now.formatted(.dateTime.minute(.twoDigits))
-                        let second = now.formatted(.dateTime.second(.twoDigits))
-
-                        return "\(viewStore.chat.name)-\(year).\(month).\(day)-\(hour).\(minute).\(second)"
-                    }()
-                ) { result in
-                    #if DEBUG
-                    switch result {
-                    case .success(let url):
-                        print("Exported to \(url)")
-                    case .failure(let error):
-                        print(error.localizedDescription)
-                    }
-                    #endif
-                }
+            Button {
+                store.send(.tryClearAllMessages)
+            } label: {
+                Image(systemName: "xmark")
             }
-            .alert(
-                store.scope(state: \.alert),
-                dismiss: .dismissAlert
+            .disabled(store.messages.isEmpty)
+            .help("Clear all messages")
+
+            Button {
+                store.send(.toggleTextModeEnabled)
+            } label: {
+                Image(systemName: "doc.plaintext")
+                    .foregroundStyle(store.isTextModeEnabled ? Color.accentColor : Color.primary)
+            }
+            .disabled(store.messages.isEmpty)
+            .help("Toggle text mode")
+
+            Button {
+                store.send(.updateFileExporterPresented(true))
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .disabled(store.messages.isEmpty)
+            .help("Export as Markdown")
+        }
+        .sheet(isPresented: editChatPresentedBinding) {
+            EditChatView(
+                chat: store.chat,
+                cancelAction: cancelEditingChat,
+                doneAction: updateChat
             )
+        }
+        .fileExporter(
+            isPresented: fileExporterPresentedBinding,
+            document: exportDocument,
+            contentType: .markdown,
+            defaultFilename: exportFilename,
+            onCompletion: handleExport
+        )
+        .alert($store.scope(state: \.alert, action: \.alert))
+    }
+
+    private func messageScrollView(_ scrollViewProxy: ScrollViewProxy) -> some View {
+        ScrollView {
+            ZStack {
+                Color.clear
+                messageList
+            }
+        }
+        .rotationEffect(.radians(.pi))
+        .scaleEffect(x: -1, y: 1, anchor: .center)
+        .background(Color(.textBackgroundColor))
+        .onChange(of: store.animatedMessageToScrollTo) { _, value in
+            scroll(to: value, using: scrollViewProxy)
+        }
+        .overlay {
+            emptyStateOverlay
+        }
+        .overlay(alignment: .bottomTrailing) {
+            sendModeHintOverlay
+        }
+        .safeAreaInset(edge: .bottom) {
+            bottomInputBar
+        }
+        .overlay {
+            textModeOverlay
+        }
+    }
+
+    private var messageList: some View {
+        VStack {
+            ForEach(store.scope(state: \.messages, action: \.messageRow)) {
+                MessageRowView(store: $0)
+                    .rotationEffect(.radians(.pi))
+                    .scaleEffect(x: -1, y: 1, anchor: .center)
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var emptyStateOverlay: some View {
+        if store.messages.isEmpty {
+            EmptyChatView()
+        }
+    }
+
+    @ViewBuilder
+    private var sendModeHintOverlay: some View {
+        if !store.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            SendModeHintView(enterToSend: store.enterToSend)
+                .padding(.horizontal, 8)
+        }
+    }
+
+    @ViewBuilder
+    private var textModeOverlay: some View {
+        if store.isTextModeEnabled {
+            TextEditor(text: .constant(store.chatContent))
+                .font(.body)
+        }
+    }
+
+    private func scroll(to value: AnimatedMessageToScrollTo?, using scrollViewProxy: ScrollViewProxy) {
+        guard let value else { return }
+
+        if value.animated {
+            withAnimation {
+                scrollViewProxy.scrollTo(value.message.id, anchor: value.anchor)
+            }
+        } else {
+            scrollViewProxy.scrollTo(value.message.id, anchor: value.anchor)
+        }
+
+        store.send(.resetAnimatedMessageToScrollTo)
+    }
+
+    private var editChatPresentedBinding: Binding<Bool> {
+        Binding<Bool>(
+            get: { store.isEditChatPresented },
+            set: { value in store.send(.updateEditChatPresented(value)) }
+        )
+    }
+
+    private var fileExporterPresentedBinding: Binding<Bool> {
+        Binding<Bool>(
+            get: { store.isFileExporterPresented },
+            set: { value in store.send(.updateFileExporterPresented(value)) }
+        )
+    }
+
+    private var inputBinding: Binding<String> {
+        Binding<String>(
+            get: { store.input },
+            set: { value in store.send(.updateInput(value)) }
+        )
+    }
+
+    private var bottomInputBar: some View {
+        HStack(spacing: 8) {
+            if store.chat.numberOfMessagesInContext > 0 {
+                forgetHistoryButton
+            }
+
+            InputEditor(
+                placeholder: "What's in your mind?",
+                text: inputBinding,
+                enterToSend: store.enterToSend,
+                newlineAction: sendInput
+            )
+            .focused($focusedField, equals: .input)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
+            .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
+            .frame(height: 56)
+        }
+        .padding(8)
+        .background(.thinMaterial, in: Rectangle())
+        .onAppear {
+            focusedField = .input
+        }
+    }
+
+    private var forgetHistoryButton: some View {
+        Button(action: forgetHistory) {
+            Image(systemName: "fish")
+                .frame(height: 44)
+        }
+        .buttonStyle(.borderless)
+        .help("Forget all history")
+    }
+
+    private func forgetHistory() {
+        guard let last = store.messages.last else { return }
+        guard last.source != .breaker, last.source != .receiving else { return }
+
+        store.send(.breakChat)
+    }
+
+    private func sendInput() {
+        store.send(.sendInputIfCan)
+    }
+
+    private func cancelEditingChat() {
+        store.send(.updateEditChatPresented(false))
+    }
+
+    private func updateChat(_ chat: Chat) {
+        store.send(.updateChat(chat))
+        store.send(.updateEditChatPresented(false))
+    }
+
+    private var exportDocument: ChatDocument {
+        ChatDocument(data: store.chatContent.data(using: .utf8))
+    }
+
+    private func handleExport(_ result: Result<URL, Error>) {
+        #if DEBUG
+        switch result {
+        case .success(let url):
+            print("Exported to \(url)")
+        case .failure(let error):
+            print(error.localizedDescription)
+        }
+        #endif
+    }
+
+    private var exportFilename: String {
+        let now = Date()
+        let year = now.formatted(.dateTime.year(.defaultDigits))
+        let month = now.formatted(.dateTime.month(.twoDigits))
+        let day = now.formatted(.dateTime.day(.twoDigits))
+        let hour = now.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)))
+        let minute = now.formatted(.dateTime.minute(.twoDigits))
+        let second = now.formatted(.dateTime.second(.twoDigits))
+
+        return "\(store.chat.name)-\(year).\(month).\(day)-\(hour).\(minute).\(second)"
+    }
+}
+
+private struct EmptyChatView: View {
+    var body: some View {
+        VStack {
+            Text("🤖")
+                .font(.system(size: 48))
+
+            Text("How can I help you?")
+                .bold()
+        }
+    }
+}
+
+private struct SendModeHintView: View {
+    let enterToSend: Bool
+
+    var body: some View {
+        hint
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 5))
+    }
+
+    private var hint: Text {
+        if enterToSend {
+            return Text("Enter").bold()
+                + Text(" to Send, ")
+                + Text("⇧ Enter").bold()
+                + Text(" for Newline")
+        } else {
+            return Text("⇧ Enter").bold()
+                + Text(" to Send, ")
+                + Text("Enter").bold()
+                + Text(" for Newline")
         }
     }
 }
@@ -224,7 +287,7 @@ struct DetailView_Previews: PreviewProvider {
             store: .init(
                 initialState: DetailReducer.State(
                     chat: .init(
-                        id: .init(1),
+                        id: .init(Int64(1)),
                         name: "闲聊",
                         model: .gpt_3_5_turbo,
                         prompt: "语言简洁易懂的博士",
@@ -235,13 +298,13 @@ struct DetailView_Previews: PreviewProvider {
                     messages: [
                         .init(
                             id: .init("1"),
-                            chatID: .init(1),
+                            chatID: .init(Int64(1)),
                             source: .me,
                             content: "你好"
                         ),
                         .init(
                             id: .init("2"),
-                            chatID: .init(1),
+                            chatID: .init(Int64(1)),
                             source: .sensei,
                             content: "你好，我能怎么帮助你？"
                         ),
@@ -250,10 +313,12 @@ struct DetailView_Previews: PreviewProvider {
                     input: "",
                     isEditChatPresented: false,
                     isTextModeEnabled: false,
-                    isFileExporterPresented: false
-                ),
-                reducer: DetailReducer()
-            )
+                    isFileExporterPresented: false,
+                    alert: nil
+                )
+            ) {
+                DetailReducer()
+            }
         )
         .frame(width: 400, height: 400)
     }

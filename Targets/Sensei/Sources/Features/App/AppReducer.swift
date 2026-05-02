@@ -1,9 +1,11 @@
 import SwiftUI
 import ComposableArchitecture
 
-struct AppReducer: Reducer {
+@Reducer
+struct AppReducer {
     @Dependency(\.databaseManager) var databaseManager
 
+    @ObservableState
     struct State: Equatable {
         var settings: SettingsReducer.State
         var chats: IdentifiedArrayOf<Chat>
@@ -15,8 +17,8 @@ struct AppReducer: Reducer {
         var isEditChatPresented: Bool
         var isTextModeEnabled: Bool
         var isFileExporterPresented: Bool
-        var sidebarAlert: AlertState<SidebarReducer.Action>?
-        var detailAlert: AlertState<DetailReducer.Action>?
+        var sidebarAlert: AlertState<SidebarReducer.Action.Alert>?
+        var detailAlert: AlertState<DetailReducer.Action.Alert>?
 
         var currentChat: Chat? {
             currentChatID.flatMap { chats[id: $0] }
@@ -26,14 +28,14 @@ struct AppReducer: Reducer {
             get {
                 .init(
                     chats: chats,
-                    currentChat: currentChat,
+                    currentChatID: currentChatID,
                     isNewChatPresented: isNewChatPresented,
                     alert: sidebarAlert
                 )
             }
             set {
                 chats = newValue.chats
-                currentChatID = newValue.currentChat?.id
+                currentChatID = newValue.currentChatID
                 isNewChatPresented = newValue.isNewChatPresented
                 sidebarAlert = newValue.alert
             }
@@ -79,23 +81,8 @@ struct AppReducer: Reducer {
                 apiKey: Settings.apiKey,
                 enterToSend: Settings.enterToSend
             )
-
-            do {
-                let localChats = try databaseManager.chats()
-
-                chats = .init(
-                    uniqueElements: localChats
-                        .map { $0.chat }
-                        .sorted(by: { $0.updatedAt > $1.updatedAt })
-                )
-
-                currentChatID = chats.first?.id
-            } catch {
-                chats = []
-                currentChatID = nil
-            }
-
             chatMessages = [:]
+            animatedMessageToScrollTo = nil
             input = ""
             isNewChatPresented = false
             isEditChatPresented = false
@@ -103,6 +90,22 @@ struct AppReducer: Reducer {
             isFileExporterPresented = false
             sidebarAlert = nil
             detailAlert = nil
+
+            do {
+                let localChats = try databaseManager.chats()
+
+                let loadedChats = IdentifiedArrayOf<Chat>(
+                    uniqueElements: localChats
+                        .map { $0.chat }
+                        .sorted(by: { $0.updatedAt > $1.updatedAt })
+                )
+
+                chats = loadedChats
+                currentChatID = loadedChats.first?.id
+            } catch {
+                chats = []
+                currentChatID = nil
+            }
         }
     }
 
@@ -113,14 +116,14 @@ struct AppReducer: Reducer {
     }
 
     var body: some ReducerOf<Self> {
-        Scope(state: \.settings, action: /Action.settings) {
+        Scope(state: \.settings, action: \.settings) {
             SettingsReducer()
         }
 
-        Scope(state: \.sidebar, action: /Action.sidebar) {
+        Scope(state: \.sidebar, action: \.sidebar) {
             SidebarReducer()
         }
-        .ifLet(\.detail, action: /Action.detail) {
+        .ifLet(\.detail, action: \.detail) {
             DetailReducer()
         }
 
@@ -137,8 +140,8 @@ struct AppReducer: Reducer {
                 }
             case .sidebar(let action):
                 switch action {
-                case .selectChat(let chat):
-                    if let chat {
+                case .selectChat(let chatID):
+                    if let chatID, let chat = state.chats[id: chatID] {
                         do {
                             let localMessages = try databaseManager.messages(of: chat.localChat)
 

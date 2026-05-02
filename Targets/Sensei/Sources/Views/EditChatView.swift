@@ -59,8 +59,7 @@ struct EditChatView: View {
                     )
                     .textFieldStyle(.plain)
                     .padding(8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(5)
+                    .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -74,8 +73,7 @@ struct EditChatView: View {
                     )
                     .padding(.horizontal, 4)
                     .padding(.vertical, 8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(5)
+                    .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
                     .frame(height: 100)
                 }
             }
@@ -94,8 +92,7 @@ struct EditChatView: View {
                     }
                     .labelsHidden()
                     .padding(8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(5)
+                    .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -108,8 +105,7 @@ struct EditChatView: View {
                     )
                     .textFieldStyle(.plain)
                     .padding(8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(5)
+                    .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -122,8 +118,7 @@ struct EditChatView: View {
                     )
                     .textFieldStyle(.plain)
                     .padding(8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(5)
+                    .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
                 }
             }
 
@@ -160,7 +155,7 @@ struct EditChatView_Previews: PreviewProvider {
     static var previews: some View {
         EditChatView(
             chat: .init(
-                id: .init(1),
+                id: .init(Int64(1)),
                 name: "闲聊",
                 model: .gpt_3_5_turbo,
                 prompt: "语言简洁易懂的博士",

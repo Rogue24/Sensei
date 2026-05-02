@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import GRDB
 
-final class DatabaseManager: Sendable {
+final class DatabaseManager: @unchecked Sendable {
     static let shared = DatabaseManager()
 
     let dbQueue: DatabaseQueue

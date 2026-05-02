@@ -58,7 +58,9 @@ private struct CustomTextEditor: NSViewRepresentable {
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         guard let textView = nsView.documentView as? CustomTextView else { return }
 
-        textView.string = text
+        if textView.string != text {
+            textView.string = text
+        }
         textView.enterToSend = enterToSend
         textView.newlineAction = newlineAction
 

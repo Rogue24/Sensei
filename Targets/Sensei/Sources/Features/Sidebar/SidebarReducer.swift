@@ -1,42 +1,49 @@
 import SwiftUI
 import ComposableArchitecture
 
-struct SidebarReducer: Reducer {
+@Reducer
+struct SidebarReducer {
     @Dependency(\.databaseManager) var databaseManager
 
+    @ObservableState
     struct State: Equatable {
         var chats: IdentifiedArrayOf<Chat>
-        var currentChat: Chat?
+        var currentChatID: Chat.ID?
         var isNewChatPresented: Bool
-        var alert: AlertState<Action>?
+        @Presents var alert: AlertState<Action.Alert>?
     }
 
     enum Action: Equatable {
-        case selectChat(Chat?)
+        case selectChat(Chat.ID?)
         case tryDeleteChat(Chat)
         case deleteChat(Chat)
         case updateNewChatPresented(Bool)
         case createNewChat(LocalChat)
-        case dismissAlert
-        case chatRow(id: ChatRowReducer.State.ID, action: ChatRowReducer.Action)
+        case alert(PresentationAction<Alert>)
+        case chatRow(IdentifiedActionOf<ChatRowReducer>)
+
+        enum Alert: Equatable {
+            case deleteChat(Chat)
+        }
     }
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
             case .selectChat(let chat):
-                state.currentChat = chat
+                state.currentChatID = chat
                 return .none
             case .tryDeleteChat(let chat):
                 state.alert = .init(
                     title: { .init("Delete \(chat.name)?") },
                     actions: {
-                        ButtonState<Action>.cancel(.init("Cancel"))
+                        ButtonState(role: .cancel) {
+                            TextState("Cancel")
+                        }
 
-                        ButtonState<Action>.destructive(
-                            .init("Delete"),
-                            action: .send(.deleteChat(chat))
-                        )
+                        ButtonState(role: .destructive, action: .deleteChat(chat)) {
+                            TextState("Delete")
+                        }
                     }
                 )
 
@@ -45,7 +52,7 @@ struct SidebarReducer: Reducer {
                 do {
                     try databaseManager.delete(chat.localChat)
                     state.chats.remove(id: chat.id)
-                    state.currentChat = state.chats.first
+                    state.currentChatID = state.chats.first?.id
                 } catch {
                     print("error:", error)
                 }
@@ -59,39 +66,40 @@ struct SidebarReducer: Reducer {
                     let localChat = try databaseManager.insert(localChat)
                     let chat = localChat.chat
                     state.chats.insert(chat, at: 0)
-                    state.currentChat = chat
+                    state.currentChatID = chat.id
                 } catch {
                     print("error:", error)
                 }
 
                 return .none
-            case .dismissAlert:
-                state.alert = nil
+            case .alert(.presented(.deleteChat(let chat))):
+                return .send(.deleteChat(chat))
+            case .alert:
                 return .none
-            case .chatRow(let id, let action):
+            case .chatRow(.element(id: let id, action: .tryDeleteChat)):
                 if let chat = state.chats[id: id] {
-                    switch action {
-                    case .tryDeleteChat:
-                        state.alert = .init(
-                            title: { .init("Delete \(chat.name)?") },
-                            actions: {
-                                ButtonState<Action>.cancel(.init("Cancel"))
-
-                                ButtonState<Action>.destructive(
-                                    .init("Delete"),
-                                    action: .send(.deleteChat(chat))
-                                )
+                    state.alert = .init(
+                        title: { .init("Delete \(chat.name)?") },
+                        actions: {
+                            ButtonState(role: .cancel) {
+                                TextState("Cancel")
                             }
-                        )
-                    }
+
+                            ButtonState(role: .destructive, action: .deleteChat(chat)) {
+                                TextState("Delete")
+                            }
+                        }
+                    )
                 }
 
                 return .none
+            case .chatRow:
+                return .none
             }
         }
-        .forEach(\.chats, action: /Action.chatRow) {
+        .ifLet(\.$alert, action: \.alert)
+        .forEach(\.chats, action: \.chatRow) {
             ChatRowReducer()
         }
     }
 }
-

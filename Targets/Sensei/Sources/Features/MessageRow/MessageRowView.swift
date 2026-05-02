@@ -8,139 +8,119 @@ struct MessageRowView: View {
     @State private var over = false
 
     var body: some View {
-        WithViewStore(store, observe: { $0 }) { viewStore in
-            Group {
-                switch viewStore.source {
-                case .me:
-                    HStack(spacing: 0) {
-                        Spacer(minLength: 20)
+        Group {
+            switch store.source {
+            case .me:
+                HStack(spacing: 0) {
+                    Spacer(minLength: 20)
 
-                        Button {
-                            viewStore.send(.tryClearFromBottomToThisMessage)
-                        } label: {
-                            Image(systemName: "xmark")
-                                .opacity(over ? 1 : 0)
-                        }
-                        .help("Clear from bottom to this message")
-                        .buttonStyle(.borderless)
-                        .padding(.trailing, 10)
+                    Button {
+                        store.send(.tryClearFromBottomToThisMessage)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .opacity(over ? 1 : 0)
+                    }
+                    .help("Clear from bottom to this message")
+                    .buttonStyle(.borderless)
+                    .padding(.trailing, 10)
 
-                        Button {
-                            viewStore.send(.copyMessage)
-                        } label: {
-                            Image(systemName: "doc.on.doc")
-                                .opacity(over ? 1 : 0)
-                        }
-                        .help("Copy")
-                        .buttonStyle(.borderless)
-                        .padding(.trailing, 10)
+                    Button {
+                        store.send(.copyMessage)
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .opacity(over ? 1 : 0)
+                    }
+                    .help("Copy")
+                    .buttonStyle(.borderless)
+                    .padding(.trailing, 10)
 
-                        Text(
-                            viewStore.content
-                        )
+                    Text(store.content)
                         .textSelection(.enabled)
                         .lineSpacing(4)
-                        .foregroundColor(.accentColor)
+                        .foregroundStyle(Color.accentColor)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
                         .background(
-                            RoundedRectangle(
-                                cornerRadius: 10,
-                                style: .continuous
-                            )
-                            .foregroundColor(.accentColor.opacity(over ? 0.1 : 0.05))
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.accentColor.opacity(over ? 0.1 : 0.05))
                         )
-                    }
-                case .sensei:
-                    HStack(spacing: 0) {
-                        Markdown(
-                            .init(viewStore.content)
-                        )
+                }
+            case .sensei:
+                HStack(spacing: 0) {
+                    Markdown(.init(store.content))
                         .markdownTheme(.sensei)
                         .markdownCodeSyntaxHighlighter(.sensei(colorScheme: colorScheme))
                         .textSelection(.enabled)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
                         .background(
-                            RoundedRectangle(
-                                cornerRadius: 10,
-                                style: .continuous
-                            )
-                            .foregroundColor(.gray.opacity(over ? 0.1 : 0.05))
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.gray.opacity(over ? 0.1 : 0.05))
                         )
 
-                        Button {
-                            viewStore.send(.copyMessage)
-                        } label: {
-                            Image(systemName: "doc.on.doc")
-                                .opacity(over ? 1 : 0)
-                        }
-                        .help("Copy")
-                        .buttonStyle(.borderless)
-                        .padding(.leading, 10)
-
-                        Spacer(minLength: 20)
+                    Button {
+                        store.send(.copyMessage)
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .opacity(over ? 1 : 0)
                     }
-                case .error:
-                    HStack(spacing: 0) {
-                        HStack(spacing: 8) {
-                            Text(
-                                viewStore.content
-                            )
+                    .help("Copy")
+                    .buttonStyle(.borderless)
+                    .padding(.leading, 10)
+
+                    Spacer(minLength: 20)
+                }
+            case .error:
+                HStack(spacing: 0) {
+                    HStack(spacing: 8) {
+                        Text(store.content)
                             .lineSpacing(4)
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                             .padding(.vertical, 8)
                             .padding(.horizontal, 12)
                             .background(
-                                RoundedRectangle(
-                                    cornerRadius: 10,
-                                    style: .continuous
-                                )
-                                .foregroundColor(.red.opacity(over ? 0.1 : 0.05))
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.red.opacity(over ? 0.1 : 0.05))
                             )
 
-                            Button {
-                                viewStore.send(.retryChatIfCan)
-                            } label: {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Retry")
+                        Button {
+                            store.send(.retryChatIfCan)
+                        } label: {
+                            Image(systemName: "arrow.triangle.2.circlepath")
                         }
-
-                        Spacer(minLength: 20)
+                        .buttonStyle(.borderless)
+                        .help("Retry")
                     }
-                case .breaker:
-                    HStack(spacing: 2) {
-                        Color.gray.opacity(over ? 0.5 : 0.35).frame(height: 1)
 
-                        Image(systemName: "fish")
-                        Image(systemName: "fish")
-                        Image(systemName: "fish")
+                    Spacer(minLength: 20)
+                }
+            case .breaker:
+                HStack(spacing: 2) {
+                    Color.gray.opacity(over ? 0.5 : 0.35).frame(height: 1)
 
-                        Color.gray.opacity(over ? 0.5 : 0.35).frame(height: 1)
-                    }
-                case .receiving:
-                    HStack(spacing: 0) {
-                        ProgressView()
-                            .scaleEffect(.init(width: 0.6, height: 0.6))
-                            .background(
-                                RoundedRectangle(
-                                    cornerRadius: 10,
-                                    style: .continuous
-                                )
-                                .foregroundColor(.gray.opacity(over ? 0.1 : 0.05))
-                            )
+                    Image(systemName: "fish")
+                    Image(systemName: "fish")
+                    Image(systemName: "fish")
 
-                        Spacer()
-                    }
+                    Color.gray.opacity(over ? 0.5 : 0.35).frame(height: 1)
+                }
+            case .receiving:
+                HStack(spacing: 0) {
+                    ProgressView()
+                        .scaleEffect(.init(width: 0.6, height: 0.6))
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.gray.opacity(over ? 0.1 : 0.05))
+                        )
+
+                    Spacer()
                 }
             }
-            .onHover {
-                over = $0
-            }
-            .id(viewStore.id)
         }
+        .onHover {
+            over = $0
+        }
+        .id(store.id)
     }
 }
 
@@ -148,51 +128,55 @@ struct MessageRowView_Previews: PreviewProvider {
     static var previews: some View {
         List {
             MessageRowView(
-                store: .init(
+                store: Store(
                     initialState: .init(
                         id: .init("1"),
-                        chatID: .init(1),
+                        chatID: .init(Int64(1)),
                         source: .me,
                         content: "Hello"
-                    ),
-                    reducer: MessageRowReducer()
-                )
+                    )
+                ) {
+                    MessageRowReducer()
+                }
             )
 
             MessageRowView(
-                store: .init(
+                store: Store(
                     initialState: .init(
                         id: .init("2"),
-                        chatID: .init(1),
+                        chatID: .init(Int64(1)),
                         source: .sensei,
                         content: "How do you do?"
-                    ),
-                    reducer: MessageRowReducer()
-                )
+                    )
+                ) {
+                    MessageRowReducer()
+                }
             )
 
             MessageRowView(
-                store: .init(
+                store: Store(
                     initialState: .init(
                         id: .init("3"),
-                        chatID: .init(1),
+                        chatID: .init(Int64(1)),
                         source: .error,
                         content: "Error"
-                    ),
-                    reducer: MessageRowReducer()
-                )
+                    )
+                ) {
+                    MessageRowReducer()
+                }
             )
 
             MessageRowView(
-                store: .init(
+                store: Store(
                     initialState: .init(
                         id: .init("4"),
-                        chatID: .init(1),
+                        chatID: .init(Int64(1)),
                         source: .receiving,
                         content: ""
-                    ),
-                    reducer: MessageRowReducer()
-                )
+                    )
+                ) {
+                    MessageRowReducer()
+                }
             )
         }
         .frame(width: 400, height: 400)

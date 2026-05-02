@@ -2,7 +2,8 @@ import SwiftUI
 import AppKit
 import ComposableArchitecture
 
-struct ChatRowReducer: Reducer {
+@Reducer
+struct ChatRowReducer {
     typealias State = Chat
 
     enum Action: Equatable {

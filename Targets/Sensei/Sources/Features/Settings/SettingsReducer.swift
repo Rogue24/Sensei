@@ -1,7 +1,9 @@
 import SwiftUI
 import ComposableArchitecture
 
-struct SettingsReducer: Reducer {
+@Reducer
+struct SettingsReducer {
+    @ObservableState
     struct State: Equatable {
         var customHost: String
         var apiKey: String

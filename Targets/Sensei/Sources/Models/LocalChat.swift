@@ -1,7 +1,7 @@
 import Foundation
-import GRDB
+@preconcurrency import GRDB
 
-struct LocalChat: Codable, Identifiable, Hashable {
+struct LocalChat: Codable, Identifiable, Hashable, Sendable {
     var id: Int64?
     var name: String
     var model: ChatGPTModel

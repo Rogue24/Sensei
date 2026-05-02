@@ -1,10 +1,11 @@
 import Foundation
 import JavaScriptCore
 
-final class PrismHighlighter {
+final class PrismHighlighter: @unchecked Sendable {
     static let shared = PrismHighlighter()
 
     private let context: JSContext
+    private let lock = NSLock()
 
     private init() {
         let context = JSContext()!
@@ -26,6 +27,9 @@ final class PrismHighlighter {
     ) -> NSAttributedString? {
         guard !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         guard !language.isEmpty else { return nil }
+
+        lock.lock()
+        defer { lock.unlock() }
 
         context.globalObject.setValue(code, forProperty: "nixInput")
         context.globalObject.setValue(language, forProperty: "nixLanguage")

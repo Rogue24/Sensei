@@ -1,9 +1,11 @@
 import SwiftUI
 import ComposableArchitecture
 
-struct DetailReducer: Reducer {
+@Reducer
+struct DetailReducer {
     @Dependency(\.databaseManager) var databaseManager
 
+    @ObservableState
     struct State: Equatable {
         var chat: Chat
         var messages: IdentifiedArrayOf<Message>
@@ -13,7 +15,7 @@ struct DetailReducer: Reducer {
         var isEditChatPresented: Bool
         var isTextModeEnabled: Bool
         var isFileExporterPresented: Bool
-        var alert: AlertState<Action>?
+        @Presents var alert: AlertState<Action.Alert>?
 
         var chatContent: String {
             messages.compactMap {
@@ -53,8 +55,13 @@ struct DetailReducer: Reducer {
         case toggleTextModeEnabled
         case updateFileExporterPresented(Bool)
         case breakChat
-        case dismissAlert
-        case messageRow(id: MessageRowReducer.State.ID, action: MessageRowReducer.Action)
+        case alert(PresentationAction<Alert>)
+        case messageRow(IdentifiedActionOf<MessageRowReducer>)
+
+        enum Alert: Equatable {
+            case clearAllMessages
+            case clearFromBottomToThisMessage(Message)
+        }
     }
 
     var body: some ReducerOf<Self> {
@@ -64,12 +71,13 @@ struct DetailReducer: Reducer {
                 state.alert = .init(
                     title: { .init("Clear all messages?") },
                     actions: {
-                        ButtonState<Action>.cancel(.init("Cancel"))
+                        ButtonState(role: .cancel) {
+                            TextState("Cancel")
+                        }
 
-                        ButtonState<Action>.destructive(
-                            .init("Clear"),
-                            action: .send(.clearAllMessages)
-                        )
+                        ButtonState(role: .destructive, action: .clearAllMessages) {
+                            TextState("Clear")
+                        }
                     }
                 )
 
@@ -332,41 +340,48 @@ struct DetailReducer: Reducer {
                     print("error:", error)
                     return .none
                 }
-            case .dismissAlert:
-                state.alert = nil
+            case .alert(.presented(.clearAllMessages)):
+                return .send(.clearAllMessages)
+            case .alert(.presented(.clearFromBottomToThisMessage(let message))):
+                return .send(.clearFromBottomToThisMessage(message))
+            case .alert:
                 return .none
-            case .messageRow(let id, let action):
-                switch action {
-                case .tryClearFromBottomToThisMessage:
-                    if let targetMessage = state.messages[id: id] {
-                        state.alert = .init(
-                            title: { .init("Clear from bottom to this message?") },
-                            actions: {
-                                ButtonState<Action>.cancel(.init("Cancel"))
-
-                                ButtonState<Action>.destructive(
-                                    .init("Clear"),
-                                    action: .send(.clearFromBottomToThisMessage(targetMessage))
-                                )
+            case .messageRow(.element(id: let id, action: .tryClearFromBottomToThisMessage)):
+                if let targetMessage = state.messages[id: id] {
+                    state.alert = .init(
+                        title: { .init("Clear from bottom to this message?") },
+                        actions: {
+                            ButtonState(role: .cancel) {
+                                TextState("Cancel")
                             }
-                        )
-                    }
 
-                    return .none
-                case .retryChatIfCan:
-                    guard !state.messages.isEmpty else { return .none }
-
-                    return .run { send in
-                        await send(.clearErrorMessages)
-                        await send(.markReceiving)
-                        await send(.sendChatIfCan)
-                    }
-                case .copyMessage:
-                    return .none
+                            ButtonState(
+                                role: .destructive,
+                                action: .clearFromBottomToThisMessage(targetMessage)
+                            ) {
+                                TextState("Clear")
+                            }
+                        }
+                    )
                 }
+
+                return .none
+            case .messageRow(.element(id: _, action: .retryChatIfCan)):
+                guard !state.messages.isEmpty else { return .none }
+
+                return .run { send in
+                    await send(.clearErrorMessages)
+                    await send(.markReceiving)
+                    await send(.sendChatIfCan)
+                }
+            case .messageRow(.element(id: _, action: .copyMessage)):
+                return .none
+            case .messageRow:
+                return .none
             }
         }
-        .forEach(\.messages, action: /Action.messageRow) {
+        .ifLet(\.$alert, action: \.alert)
+        .forEach(\.messages, action: \.messageRow) {
             MessageRowReducer()
         }
     }

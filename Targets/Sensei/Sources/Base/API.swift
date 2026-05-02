@@ -28,8 +28,8 @@ enum API {
 }
 
 extension API {
-    struct Message {
-        enum Role: String {
+    struct Message: Sendable {
+        enum Role: String, Sendable {
             case system
             case user
             case assistant
@@ -43,7 +43,7 @@ extension API {
         model: ChatGPTModel,
         temperature: Double,
         messages: [Message]
-    ) async throws -> AsyncThrowingStream<String, Swift.Error> {
+    ) async throws -> AsyncThrowingStream<String, any Swift.Error> {
         let apiKey = Settings.apiKey
 
         guard !apiKey.isEmpty else {
@@ -128,12 +128,12 @@ extension API {
                 struct Error: AnandaModel {
                     let message: String
                     let type: String
-                    let code: String
+                    let code: String?
 
                     init(json: AnandaJSON) {
                         message = json.message.string()
                         type = json.type.string()
-                        code = json.code.string()
+                        code = json.code.string
                     }
                 }
 
@@ -144,9 +144,12 @@ extension API {
                 }
             }
 
-            let output = Output(jsonString: errorJSONString)
+            let output = Output.decode(from: errorJSONString)
 
-            throw Error.invalidResponse(httpURLResponse.statusCode, output.error.code)
+            throw Error.invalidResponse(
+                httpURLResponse.statusCode,
+                output.error.code ?? output.error.type
+            )
         }
 
         struct StreamOutput: AnandaModel {
@@ -185,7 +188,7 @@ extension API {
             }
         }
 
-        return AsyncThrowingStream<String, Swift.Error> { continuation in
+        return AsyncThrowingStream<String, any Swift.Error> { continuation in
             Task(priority: .userInitiated) {
                 do {
                     for try await line in result.lines {
@@ -193,10 +196,13 @@ extension API {
                         print("line:", line)
                         #endif
 
+                        if line == "data: [DONE]" {
+                            break
+                        }
+
                         if line.hasPrefix("data: "),
-                           let data = line.dropFirst(6).data(using: .utf8)
-                        {
-                            let output = StreamOutput(jsonData: data)
+                           let data = line.dropFirst(6).data(using: .utf8) {
+                            let output = StreamOutput.decode(from: data)
 
                             if let content = output.choices.first?.delta.content {
                                 continuation.yield(content)

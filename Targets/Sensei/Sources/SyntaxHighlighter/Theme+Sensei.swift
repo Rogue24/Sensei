@@ -1,8 +1,10 @@
 import SwiftUI
-import MarkdownUI
+@preconcurrency import MarkdownUI
 
 extension Theme {
-    static let sensei = Theme()
+    @MainActor
+    static var sensei: Theme {
+        Theme()
         .code {
             FontFamilyVariant(.monospaced)
             FontSize(.em(0.94))
@@ -70,6 +72,8 @@ extension Theme {
                 .relativePadding(.trailing, length: .em(1))
         }
         .codeBlock { configuration in
+            let content = configuration.content
+
             HStack {
                 configuration.label
                     .relativeLineSpacing(.em(0.15))
@@ -85,7 +89,7 @@ extension Theme {
 
                 Button {
                     NSPasteboard.general.declareTypes([.string], owner: nil)
-                    NSPasteboard.general.setString(configuration.content, forType: .string)
+                    NSPasteboard.general.setString(content, forType: .string)
                 } label: {
                     Image(systemName: "doc.on.doc")
                 }
@@ -112,4 +116,5 @@ extension Theme {
         .thematicBreak {
             Divider().markdownMargin(top: .em(2), bottom: .em(2))
         }
+    }
 }

@@ -4,7 +4,7 @@ struct NewChatView: View {
     private let cancelAction: () -> Void
     private let doneAction: (LocalChat) -> Void
     @State private var name = ""
-    @State private var model = ChatGPTModel.gpt_3_5_turbo
+    @State private var model = ChatGPTModel.gpt_5_mini
     @State private var prompt = ""
     @State private var temperature = 0.3
     @State private var numberOfMessagesInContext = 4
@@ -61,8 +61,7 @@ struct NewChatView: View {
                     )
                     .textFieldStyle(.plain)
                     .padding(8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(5)
+                    .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -76,8 +75,7 @@ struct NewChatView: View {
                     )
                     .padding(.horizontal, 4)
                     .padding(.vertical, 8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(5)
+                    .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
                     .frame(height: 100)
                 }
             }
@@ -96,8 +94,7 @@ struct NewChatView: View {
                     }
                     .labelsHidden()
                     .padding(8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(5)
+                    .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -110,8 +107,7 @@ struct NewChatView: View {
                     )
                     .textFieldStyle(.plain)
                     .padding(8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(5)
+                    .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -124,8 +120,7 @@ struct NewChatView: View {
                     )
                     .textFieldStyle(.plain)
                     .padding(8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(5)
+                    .background(Color(.textBackgroundColor), in: .rect(cornerRadius: 5))
                 }
             }
 
@@ -146,7 +141,7 @@ struct NewChatView: View {
                         model: model,
                         prompt: validSenseiPrompt,
                         temperature: temperature,
-                        numberOfMessagesInContext: 4,
+                        numberOfMessagesInContext: numberOfMessagesInContext,
                         updatedAt: .init()
                     )
 

@@ -5,28 +5,20 @@ import ComposableArchitecture
 @main
 struct SenseiApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @Environment(\.openWindow) private var openWindow
     @Environment(\.openURL) private var openURL
+    private let store: StoreOf<AppReducer> = .init(
+        initialState: .init(
+            databaseManager: .shared
+        )
+    ) {
+        AppReducer()
+    }
 
     var body: some Scene {
-        let store: StoreOf<AppReducer> = .init(
-            initialState: .init(
-                databaseManager: .shared
-            ),
-            reducer: AppReducer()
-        )
-
         WindowGroup {
             AppView(store: store)
         }
         .commands {
-            CommandGroup(after: .appInfo) {
-                Button("Settings...") {
-                    openWindow(id: "settings")
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
-
             CommandGroup(before: .help) {
                 Button("Source Code") {
                     openURL(.init(string: "https://github.com/nixzhu/Sensei")!)
@@ -35,13 +27,14 @@ struct SenseiApp: App {
             }
         }
 
-        Window("Settings", id: "settings") {
+        SwiftUI.Settings {
             SettingsView(
                 store: store.scope(
                     state: \.settings,
-                    action: { .settings($0) }
+                    action: \.settings
                 )
             )
+            .frame(width: 360, height: 220)
         }
     }
 }

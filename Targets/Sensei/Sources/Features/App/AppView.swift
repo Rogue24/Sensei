@@ -9,18 +9,14 @@ struct AppView: View {
             SidebarView(
                 store: store.scope(
                     state: \.sidebar,
-                    action: { .sidebar($0) }
+                    action: \.sidebar
                 )
             )
+            .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 280)
         } detail: {
-            IfLetStore(
-                store.scope(
-                    state: \.detail,
-                    action: { .detail($0) }
-                )
-            ) {
-                DetailView(store: $0)
-            } else: {
+            if let detailStore = store.scope(state: \.detail, action: \.detail) {
+                DetailView(store: detailStore)
+            } else {
                 Text("Select a chat or create a new one")
             }
         }

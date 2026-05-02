@@ -2,58 +2,48 @@ import SwiftUI
 import ComposableArchitecture
 
 struct SidebarView: View {
-    let store: StoreOf<SidebarReducer>
+    @Bindable var store: StoreOf<SidebarReducer>
 
     var body: some View {
-        WithViewStore(store, observe: { $0 }) { viewStore in
-            List(
-                selection: viewStore.binding(
-                    get: \.currentChat,
-                    send: { .selectChat($0) }
-                )
-            ) {
-                ForEachStore(
-                    store.scope(
-                        state: \.chats,
-                        action: SidebarReducer.Action.chatRow(id:action:)
+        List(
+            selection: Binding(
+                get: { store.currentChatID },
+                set: { store.send(.selectChat($0)) }
+            )
+        ) {
+            ForEach(store.scope(state: \.chats, action: \.chatRow)) { chatStore in
+                ChatRowView(store: chatStore)
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup {
+                Spacer()
+
+                Button {
+                    store.send(.updateNewChatPresented(true))
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .help("New chat")
+                .sheet(
+                    isPresented: Binding(
+                        get: { store.isNewChatPresented },
+                        set: { store.send(.updateNewChatPresented($0)) }
                     )
                 ) {
-                    ChatRowView(store: $0)
+                    NewChatView(
+                        cancelAction: {
+                            store.send(.updateNewChatPresented(false))
+                        },
+                        doneAction: { localChat in
+                            store.send(.createNewChat(localChat))
+                            store.send(.updateNewChatPresented(false))
+                        }
+                    )
                 }
             }
-            .toolbar {
-                ToolbarItemGroup {
-                    Spacer()
-
-                    Button {
-                        viewStore.send(.updateNewChatPresented(true))
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .help("New chat")
-                    .sheet(
-                        isPresented: viewStore.binding(
-                            get: \.isNewChatPresented,
-                            send: { .updateNewChatPresented($0) }
-                        )
-                    ) {
-                        NewChatView(
-                            cancelAction: {
-                                viewStore.send(.updateNewChatPresented(false))
-                            },
-                            doneAction: { localChat in
-                                viewStore.send(.createNewChat(localChat))
-                                viewStore.send(.updateNewChatPresented(false))
-                            }
-                        )
-                    }
-                }
-            }
-            .alert(
-                store.scope(state: \.alert),
-                dismiss: .dismissAlert
-            )
         }
+        .alert($store.scope(state: \.alert, action: \.alert))
     }
 }
 
@@ -61,11 +51,11 @@ struct SidebarView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationSplitView {
             SidebarView(
-                store: .init(
+                store: Store(
                     initialState: SidebarReducer.State(
                         chats: [
                             .init(
-                                id: .init(1),
+                                id: .init(Int64(1)),
                                 name: "闲聊",
                                 model: .gpt_3_5_turbo,
                                 prompt: "语言简洁易懂的博士",
@@ -74,11 +64,13 @@ struct SidebarView_Previews: PreviewProvider {
                                 updatedAt: .init()
                             ),
                         ],
-                        currentChat: nil,
-                        isNewChatPresented: false
-                    ),
-                    reducer: SidebarReducer()
-                )
+                        currentChatID: nil,
+                        isNewChatPresented: false,
+                        alert: nil
+                    )
+                ) {
+                    SidebarReducer()
+                }
             )
             .frame(width: 200)
         } detail: {

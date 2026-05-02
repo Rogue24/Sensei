@@ -1,7 +1,9 @@
 import Foundation
+import ComposableArchitecture
 import Tagged
 
-struct Chat: Identifiable, Hashable {
+@ObservableState
+struct Chat: Identifiable, Hashable, Sendable {
     typealias ID = Tagged<Chat, Int64>
 
     let id: ID

@@ -5,10 +5,39 @@ let name = "Sensei"
 let project = Project(
     name: name,
     organizationName: "nixzhu",
+    options: .options(
+        disableSynthesizedResourceAccessors: true
+    ),
+    packages: [
+        .remote(
+            url: "https://github.com/nixzhu/Ananda.git",
+            requirement: .upToNextMajor(from: "0.1.1")
+        ),
+        .remote(
+            url: "https://github.com/pointfreeco/swift-composable-architecture.git",
+            requirement: .exact("1.25.5")
+        ),
+        .remote(
+            url: "https://github.com/pointfreeco/swift-custom-dump.git",
+            requirement: .upToNextMajor(from: "1.3.2")
+        ),
+        .remote(
+            url: "https://github.com/pointfreeco/swift-tagged.git",
+            requirement: .upToNextMajor(from: "0.10.0")
+        ),
+        .remote(
+            url: "https://github.com/gonzalezreal/swift-markdown-ui.git",
+            requirement: .upToNextMajor(from: "2.1.0")
+        ),
+        .remote(
+            url: "https://github.com/groue/GRDB.swift.git",
+            requirement: .upToNextMajor(from: "6.10.1")
+        ),
+    ],
     targets: [
-        .init(
+        .target(
             name: name,
-            platform: .macOS,
+            destinations: .macOS,
             product: .app,
             bundleId: {
                 let bundleIDPrefix = Environment.bundleIDPrefix.getString(default: "")
@@ -19,7 +48,7 @@ let project = Project(
                     return "\(bundleIDPrefix).\(name)"
                 }
             }(),
-            deploymentTarget: .macOS(targetVersion: "13.0"),
+            deploymentTargets: .macOS("14.0"),
             infoPlist: .extendingDefault(with: [
                 "CFBundleShortVersionString": .string(
                     {
@@ -50,27 +79,18 @@ let project = Project(
             sources: ["Targets/\(name)/Sources/**"],
             resources: ["Targets/\(name)/Resources/**"],
             dependencies: [
-                .external(name: "Ananda"),
-                .external(name: "ComposableArchitecture"),
-                .external(name: "CustomDump"),
-                .external(name: "Tagged"),
-                .external(name: "MarkdownUI"),
-                .external(name: "GRDB"),
+                .package(product: "Ananda"),
+                .package(product: "ComposableArchitecture"),
+                .package(product: "CustomDump"),
+                .package(product: "Tagged"),
+                .package(product: "MarkdownUI"),
+                .package(product: "GRDB"),
             ],
             settings: .settings(
                 base: .init()
+                    .swiftVersion("6.0")
                     .swiftStrictConcurrency(.complete)
-                    .otherSwiftFlags( // https://www.fline.dev/preparing-for-swift-6/
-                        """
-                        -enable-upcoming-feature BareSlashRegexLiterals
-                        -enable-upcoming-feature ConciseMagicFile
-                        -enable-upcoming-feature ExistentialAny
-                        -enable-upcoming-feature ImplicitOpenExistentials
-                        -enable-upcoming-feature StrictConcurrency
-                        -warn-concurrency
-                        -enable-actor-data-race-checks
-                        """
-                    ),
+                    .enableActorDataRaceChecks(),
                 defaultSettings: .recommended
             )
         ),
@@ -78,6 +98,13 @@ let project = Project(
 )
 
 extension SettingsDictionary {
+    func swiftVersion(_ value: String) -> SettingsDictionary {
+        var info = self
+        info["SWIFT_VERSION"] = .string(value)
+
+        return info
+    }
+
     enum SwiftStrictConcurrency: String {
         case minimal
         case targeted
@@ -87,6 +114,13 @@ extension SettingsDictionary {
     func swiftStrictConcurrency(_ value: SwiftStrictConcurrency) -> SettingsDictionary {
         var info = self
         info["SWIFT_STRICT_CONCURRENCY"] = .string(value.rawValue)
+
+        return info
+    }
+
+    func enableActorDataRaceChecks() -> SettingsDictionary {
+        var info = self
+        info["ENABLE_ACTOR_DATA_RACE_CHECKS"] = .string("YES")
 
         return info
     }

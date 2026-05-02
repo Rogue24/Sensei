@@ -1,10 +1,12 @@
 import Foundation
+import ComposableArchitecture
 import Tagged
 
-struct Message: Identifiable, Hashable {
+@ObservableState
+struct Message: Identifiable, Hashable, Sendable {
     typealias ID = Tagged<Message, String>
 
-    enum Source {
+    enum Source: Sendable {
         case me
         case sensei
         case error

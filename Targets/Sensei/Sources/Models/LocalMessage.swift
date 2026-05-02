@@ -1,8 +1,8 @@
 import Foundation
-import GRDB
+@preconcurrency import GRDB
 
-struct LocalMessage: Codable, Hashable {
-    enum Source: String, Codable, DatabaseValueConvertible {
+struct LocalMessage: Codable, Hashable, Sendable {
+    enum Source: String, Codable, DatabaseValueConvertible, Sendable {
         case me
         case sensei
         case error
