@@ -8,7 +8,7 @@
 - 优化了错误提示，让面向用户的错误信息以中文显示。
 - 这些代码改动目前保留在 `jp` 分支，尚未同步到 `main`。
 
---
+---
 
 Sensei is a Mac app based on OpenAI API.
 
