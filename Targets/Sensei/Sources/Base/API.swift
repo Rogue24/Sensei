@@ -7,21 +7,43 @@ enum API {
         case missingAPIKey
         case invalidURL
         case networkFailed
-        case invalidResponse(Int, String)
+        case invalidResponse(statusCode: Int, errorCode: String, message: String?)
         case invalidContent(String)
 
         var errorDescription: String? {
             switch self {
             case .missingAPIKey:
-                return "Missing API key, use `⌘ ,` to add one"
+                return "缺少 API Key，请使用 `⌘ ,` 打开设置后添加。"
             case .invalidURL:
-                return "Invalid URL"
+                return "API 地址无效，请检查 Custom Host 设置。"
             case .networkFailed:
-                return "Network failed"
-            case .invalidResponse(let statusCode, let errorCode):
-                return "Invalid response, status code: \(statusCode), error code: \(errorCode)"
+                return "网络请求失败，请检查网络连接或 Custom Host 设置。"
+            case .invalidResponse(let statusCode, let errorCode, let message):
+                if statusCode == 429, errorCode == "insufficient_quota" {
+                    return "OpenAI API 额度不足（429 / insufficient_quota）。请检查 API Key 对应账号的 Billing/Usage，确认已开通付款方式或更换有额度的 API Key 后重试。"
+                }
+
+                if statusCode == 429 {
+                    return "请求过于频繁（429 / \(errorCode)）。请稍后重试，或检查当前模型/API Key 的速率限制。"
+                }
+
+                if statusCode == 401 {
+                    return "API Key 无效或已过期（401 / \(errorCode)）。请在设置中更新 API Key。"
+                }
+
+                if statusCode == 403 {
+                    return "当前 API Key 没有访问权限（403 / \(errorCode)）。请检查账号权限、项目权限或所选模型。"
+                }
+
+                let trimmedMessage = message?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if let trimmedMessage, !trimmedMessage.isEmpty {
+                    return "请求失败（\(statusCode) / \(errorCode)）：\(trimmedMessage)"
+                } else {
+                    return "请求失败（\(statusCode) / \(errorCode)）。"
+                }
             case .invalidContent(let content):
-                return "Invalid content: \(content)"
+                return "响应内容无效：\(content)"
             }
         }
     }
@@ -146,9 +168,27 @@ extension API {
 
             let output = Output.decode(from: errorJSONString)
 
+            let errorCode: String = {
+                let code = output.error.code?.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+                let type = output.error.type.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+
+                if let code, !code.isEmpty {
+                    return code
+                } else if !type.isEmpty {
+                    return type
+                } else {
+                    return "unknown"
+                }
+            }()
+
             throw Error.invalidResponse(
-                httpURLResponse.statusCode,
-                output.error.code ?? output.error.type
+                statusCode: httpURLResponse.statusCode,
+                errorCode: errorCode,
+                message: output.error.message
             )
         }
 
